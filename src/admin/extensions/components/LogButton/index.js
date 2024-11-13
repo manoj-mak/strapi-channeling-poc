@@ -9,12 +9,11 @@ import axios from "axios";
 const PRODUCTION_API_URL = "http://localhost:1338/api/articles";
 const API_KEY =
   "e1f51abb94af282f14a5527cc5081347d4f3261c7f077e0a5b39e3fe80749661ea3e99ad2e8fafdc99cee250a0c67d2db8d9ae28814c189b38d47727fba8aa6ef9738fe47f57c7edb49d69870bfb2ec1ceb9818c04af64051b46c0b18522ee3e4627e67b44d673fbcd1cfcf3b424d1cc01cfc71c13a5e4aee92ed7b9d11bebd5";
-// Create axios instance with default config
+
 const axiosInstance = axios.create({
   headers: {
     Authorization: `Bearer ${API_KEY}`,
     "Content-Type": "application/json",
-    Origin: "http://localhost:1337",
   },
 });
 
@@ -29,7 +28,6 @@ const LogButton = () => {
       const stageId = contentData.id.toString();
       let existingContent = null;
 
-      // Check if content with the given stageId already exists in Production
       try {
         const response = await axiosInstance.get(
           `${PRODUCTION_API_URL}?filters[stageId][$eq]=${stageId}`
@@ -48,7 +46,6 @@ const LogButton = () => {
         );
       }
 
-      // Prepare the content data
       const preparedData = {
         ...contentData,
         stageId: stageId,
@@ -122,13 +119,14 @@ const LogButton = () => {
   };
 
   return (
-    <Flex direction="column" gap={2}>
+    <Flex direction="column" gap={2} style={{ width: "100%" }}>
       <Button
         onClick={handleClick}
         variant="primary"
         startIcon={<Plane />}
         loading={isLoading}
         disabled={isLoading}
+        fullWidth
       >
         Publish to production
       </Button>
