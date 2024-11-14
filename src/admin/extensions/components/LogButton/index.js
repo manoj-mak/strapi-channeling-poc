@@ -6,7 +6,6 @@ import { useCMEditViewDataManager } from "@strapi/helper-plugin";
 import { Plane } from "@strapi/icons";
 import axios from "axios";
 
-const PRODUCTION_API_URL = "http://localhost:1338/api/articles";
 const API_KEY =
   "e1f51abb94af282f14a5527cc5081347d4f3261c7f077e0a5b39e3fe80749661ea3e99ad2e8fafdc99cee250a0c67d2db8d9ae28814c189b38d47727fba8aa6ef9738fe47f57c7edb49d69870bfb2ec1ceb9818c04af64051b46c0b18522ee3e4627e67b44d673fbcd1cfcf3b424d1cc01cfc71c13a5e4aee92ed7b9d11bebd5";
 
@@ -18,9 +17,19 @@ const axiosInstance = axios.create({
 });
 
 const LogButton = () => {
-  const { modifiedData, initialData } = useCMEditViewDataManager();
+  const { modifiedData, initialData, slug, isSingleType } =
+    useCMEditViewDataManager();
   const [alert, setAlert] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  const getApiPath = (contentTypeSlug) => {
+    console.log(isSingleType, contentTypeSlug, "contentTypeSlug");
+    const singular = contentTypeSlug.split(".").pop();
+    // Adding 's' to make it plural
+    return `${singular}s`;
+  };
+
+  const PRODUCTION_API_URL = `http://localhost:1338/api/${getApiPath(slug)}`;
 
   const syncContentToProduction = async (contentData) => {
     try {
