@@ -23,17 +23,84 @@ const LogButton = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   const getApiPath = (contentTypeSlug) => {
-    console.log(isSingleType, contentTypeSlug, "contentTypeSlug");
     const singular = contentTypeSlug.split(".").pop();
-    // Adding 's' to make it plural
     return `${singular}s`;
   };
 
   const PRODUCTION_API_URL = `http://localhost:1338/api/${getApiPath(slug)}`;
+  const PRODUCTION_UPLOAD_URL = `http://localhost:1338/api/upload`;
+
+  const uploadMediaToProduction = async (fileUrl) => {
+    try {
+      // Download the file from staging
+      const stageResponse = await axios.get(fileUrl, { responseType: "blob" });
+      const file = new File([stageResponse.data], fileUrl.split("/").pop(), {
+        type: stageResponse.data.type,
+      });
+
+      // Create FormData for upload
+      const formData = new FormData();
+      formData.append("files", file);
+
+      // Upload to production
+      const uploadResponse = await axiosInstance.post(
+        PRODUCTION_UPLOAD_URL,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+      return uploadResponse.data[0].id; // Return the new media ID
+    } catch (error) {
+      console.error("Error uploading media:", error);
+      throw new Error("Failed to upload media file");
+    }
+  };
+
+  const processMediaFields = async (data) => {
+    const processedData = { ...data };
+
+    // Recursive function to process nested objects and arrays
+    const processNestedFields = async (obj) => {
+      for (const key in obj) {
+        if (obj[key] && typeof obj[key] === "object") {
+          if (Array.isArray(obj[key])) {
+            // Handle arrays of media or nested objects
+            for (let i = 0; i < obj[key].length; i++) {
+              if (obj[key][i] && typeof obj[key][i] === "object") {
+                if (obj[key][i].url && obj[key][i].mime) {
+                  // if it looks like a media object
+                  const newMediaId = await uploadMediaToProduction(
+                    obj[key][i].url
+                  );
+                  obj[key][i] = newMediaId;
+                } else {
+                  // Recursive call for nested objects in arrays
+                  await processNestedFields(obj[key][i]);
+                }
+              }
+            }
+          } else if (obj[key].url && obj[key].mime) {
+            // This is a media object
+            const newMediaId = await uploadMediaToProduction(obj[key].url);
+            obj[key] = newMediaId;
+          } else {
+            // Recursive call for nested objects
+            await processNestedFields(obj[key]);
+          }
+        }
+      }
+    };
+
+    await processNestedFields(processedData);
+    return processedData;
+  };
 
   const syncContentToProduction = async (contentData) => {
     try {
-      // Extract the stageId (using current entry's ID as stageId)
       const stageId = contentData.id.toString();
       let existingContent = null;
 
@@ -42,7 +109,6 @@ const LogButton = () => {
           `${PRODUCTION_API_URL}?filters[stageId][$eq]=${stageId}`
         );
 
-        // Check for existing content
         const items = response?.data?.data;
         if (items && items.length > 0) {
           existingContent = items.find(
@@ -55,10 +121,12 @@ const LogButton = () => {
         );
       }
 
+      // Process media fields before preparing the data
+      const processedContentData = await processMediaFields(contentData);
+
       const preparedData = {
-        ...contentData,
+        ...processedContentData,
         stageId: stageId,
-        // Remove unnecessary fields
         locale: undefined,
         publishedAt: new Date().toISOString(),
         createdAt: undefined,
@@ -68,7 +136,6 @@ const LogButton = () => {
       };
 
       if (existingContent) {
-        // Update existing content
         const contentId = existingContent.id;
         const updateResponse = await axiosInstance.put(
           `${PRODUCTION_API_URL}/${contentId}`,
@@ -77,18 +144,17 @@ const LogButton = () => {
 
         return {
           success: true,
-          message: "Content updated successfully in Production.",
+          message: "Content and media updated successfully in Production.",
           id: contentId,
         };
       } else {
-        // Create new content
         const createResponse = await axiosInstance.post(PRODUCTION_API_URL, {
           data: preparedData,
         });
 
         return {
           success: true,
-          message: "Content published successfully to Production.",
+          message: "Content and media published successfully to Production.",
           id: createResponse.data.data.id,
         };
       }
