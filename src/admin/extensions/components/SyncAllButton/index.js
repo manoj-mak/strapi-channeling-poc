@@ -39,9 +39,11 @@ const SyncAllButton = () => {
 
   const uploadMediaToProduction = async (fileUrl) => {
     try {
+      //download the file from staging
       const stageResponse = await stagingAxios.get(fileUrl, {
         responseType: "blob",
       });
+
       const file = new File([stageResponse.data], fileUrl.split("/").pop(), {
         type: stageResponse.data.type,
       });
@@ -73,30 +75,38 @@ const SyncAllButton = () => {
       for (const key in obj) {
         if (obj[key] && typeof obj[key] === "object") {
           if (Array.isArray(obj[key])) {
-            for (let i = 0; i < obj[key].length; i++) {
-              if (obj[key][i] && typeof obj[key][i] === "object") {
-                if (obj[key][i].url && obj[key][i].mime) {
-                  const newMediaId = await uploadMediaToProduction(
-                    obj[key][i].url
-                  );
-                  obj[key][i] = newMediaId;
+            // Handle arrays
+            const processedArray = [];
+            for (const item of obj[key]) {
+              if (item && typeof item === "object") {
+                if (item.url && item.mime) {
+                  // Handle media object in array
+                  const newMediaId = await uploadMediaToProduction(item.url);
+                  processedArray.push(newMediaId);
                 } else {
-                  await processNestedFields(obj[key][i]);
+                  // Handle nested object in array
+                  processedArray.push(await processNestedFields(item));
                 }
+              } else {
+                // Handle primitive values in array
+                processedArray.push(item);
               }
             }
+            obj[key] = processedArray;
           } else if (obj[key].url && obj[key].mime) {
+            // Handle single media object
             const newMediaId = await uploadMediaToProduction(obj[key].url);
             obj[key] = newMediaId;
           } else {
+            // Handle nested object
             await processNestedFields(obj[key]);
           }
         }
       }
+      return obj;
     };
 
-    await processNestedFields(processedData);
-    return processedData;
+    return await processNestedFields(processedData);
   };
 
   const syncContentToProduction = async (contentData) => {
@@ -121,6 +131,7 @@ const SyncAllButton = () => {
         );
       }
 
+      // Process media fields before preparing the data
       const processedContentData = await processMediaFields(contentData);
 
       const preparedData = {
@@ -164,7 +175,7 @@ const SyncAllButton = () => {
 
       while (hasMore) {
         const response = await stagingAxios.get(
-          `${STAGING_API_URL}?pagination[page]=${page}&pagination[pageSize]=${pageSize}`
+          `${STAGING_API_URL}?pagination[page]=${page}&pagination[pageSize]=${pageSize}&populate=deep`
         );
 
         const { data, meta } = response.data;
