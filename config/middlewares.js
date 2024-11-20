@@ -5,7 +5,12 @@ module.exports = ({ env }) => [
     config: {
       contentSecurityPolicy: {
         directives: {
-          "connect-src": ["'self'", "https:", "http://localhost:1338"],
+          "connect-src": [
+            "'self'",
+            "https:",
+            "http://localhost:1338",
+            "http://localhost:1337",
+          ],
         },
       },
     },

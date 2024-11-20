@@ -19,7 +19,12 @@ module.exports = ({ env }) => ({
     csp: {
       enabled: true,
       policies: {
-        "connect-src": ["'self'", "https:", "http://localhost:1338"], // production URL
+        "connect-src": [
+          "'self'",
+          "https:",
+          "http://localhost:1338",
+          "http://localhost:1337",
+        ], // production URL
       },
     },
   },

@@ -1,4 +1,5 @@
 import LogButton from "./extensions/components/LogButton/index.js";
+import SyncAllButton from "./extensions/components/SyncAllButton/index.js";
 
 const config = {
   locales: [
@@ -36,6 +37,10 @@ const bootstrap = (app) => {
   app.injectContentManagerComponent("editView", "right-links", {
     name: "log-button",
     Component: LogButton,
+  });
+  app.injectContentManagerComponent("editView", "right-links", {
+    name: "sync-all-button",
+    Component: SyncAllButton,
   });
 };
 
